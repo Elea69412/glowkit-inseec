@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commander · Glow Kit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%235a2d55'/%3E%3Cpath d='M20 8c1.4 6.2 5.8 10.6 12 12-6.2 1.4-10.6 5.8-12 12-1.4-6.2-5.8-10.6-12-12 6.2-1.4 10.6-5.8 12-12z' fill='%23fffaf6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.steps{display:flex;gap:6px;margin:0 0 24px;flex-wrap:wrap}
+.steps span{flex:1;min-width:110px;text-align:center;padding:8px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:.82rem;font-weight:600;color:var(--muted)}
+.steps span.on{background:var(--plum);color:#fff;border-color:var(--plum)}
+.checkout{display:grid;grid-template-columns:1.4fr .8fr;gap:24px;align-items:start}
+@media (max-width:820px){.checkout{grid-template-columns:1fr}}
+.summary{position:sticky;top:84px}
+.sumline{display:flex;justify-content:space-between;padding:6px 0}
+.q{margin-bottom:18px}
+.q > b{display:block;margin-bottom:8px}
+.reco{background:var(--peach);border-radius:12px;padding:16px;margin-top:10px}
+</style>
+</head>
+<body data-page="vente">
+
+<section style="padding-top:36px">
+  <div class="wrap">
+    <h1 style="font-size:2.1rem">Ma commande</h1>
+    <div class="steps"><span id="s1" class="on">1. Offre</span><span id="s2">2. Diagnostic</span><span id="s3">3. Livraison</span><span id="s4">4. Paiement</span></div>
+
+    <div class="checkout">
+      <div class="card">
+        <!-- Étape 1 -->
+        <div id="step1">
+          <h3>Choisis ta formule</h3>
+          <div class="choice" id="offerChoice"></div>
+          <button class="btn" style="margin-top:20px" onclick="go(2)">Continuer → Diagnostic</button>
+        </div>
+
+        <!-- Étape 2 -->
+        <div id="step2" class="hidden">
+          <h3>Ton diagnostic de peau (gratuit)</h3>
+          <p class="muted small">7 questions, environ 3 minutes. Ton sérum est choisi selon tes réponses.</p>
+          <form id="diag"></form>
+          <div id="recoBox" class="reco hidden"></div>
+          <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+            <button class="btn ghost" onclick="go(1)">← Retour</button>
+            <button class="btn" onclick="if(computeReco()) go(3)">Continuer → Livraison</button>
+          </div>
+        </div>
+
+        <!-- Étape 3 -->
+        <div id="step3" class="hidden">
+          <h3>Livraison</h3>
+          <p class="notice">Démo : utilise des coordonnées <b>fictives</b>. Rien n'est livré.</p>
+          <form id="ship">
+            <div class="row"><div><label for="fn">Prénom</label><input id="fn" required value="" placeholder="Ex. : Camille"></div><div><label for="ln">Nom</label><input id="ln" required placeholder="Ex. : Martin"></div></div>
+            <div class="row"><div><label for="em">E-mail</label><input id="em" type="email" required placeholder="camille@exemple.fr"></div><div><label for="ci">Ville</label><input id="ci" required placeholder="Ex. : Bordeaux"></div></div>
+            <label for="src">Comment nous as-tu connues ?</label>
+            <select id="src"><option>Instagram</option><option>TikTok</option><option>LinkedIn</option><option>Partenaire (créatrice de contenu)</option><option>BDE / association étudiante</option><option>Salon / pop-up</option><option>Bouche-à-oreille</option></select>
+            <button type="button" class="btn ghost sm" style="margin-top:14px" onclick="fillDemo()">Remplir avec un profil fictif</button>
+          </form>
+          <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+            <button class="btn ghost" onclick="go(2)">← Retour</button>
+            <button class="btn" onclick="if(document.getElementById('ship').reportValidity()) go(4)">Continuer → Paiement</button>
+          </div>
+        </div>
+
+        <!-- Étape 4 -->
+        <div id="step4" class="hidden">
+          <h3>Paiement simulé</h3>
+          <p class="notice"><b>Aucun paiement réel.</b> Ce site est un projet étudiant INSEEC : aucune carte n'est demandée ni débitée.</p>
+          <div class="choice" style="margin-top:14px">
+            <label><input type="radio" name="pay" value="Carte bancaire (simulée)" checked> Carte bancaire <span class="muted small">(simulation, aucun numéro demandé)</span></label>
+            <label><input type="radio" name="pay" value="Apple Pay (simulé)"> Apple Pay <span class="muted small">(simulation)</span></label>
+            <label><input type="radio" name="pay" value="PayPal (simulé)"> PayPal <span class="muted small">(simulation)</span></label>
+          </div>
+          <label style="display:flex;gap:10px;font-weight:500;align-items:flex-start;margin-top:16px"><input type="checkbox" id="cgv" style="width:auto;margin-top:4px"> J'ai compris qu'il s'agit d'une démo et qu'aucune vente n'a lieu.</label>
+          <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+            <button class="btn ghost" onclick="go(3)">← Retour</button>
+            <button class="btn" id="payBtn" onclick="pay()">Payer (simulation)</button>
+          </div>
+          <p id="payMsg" class="hidden" style="margin-top:12px;font-weight:600;color:var(--plum)">Paiement simulé en cours…</p>
+        </div>
+      </div>
+
+      <aside class="card summary">
+        <h3>Récapitulatif</h3>
+        <div class="sumline"><span id="sumName">—</span><b id="sumPrice">—</b></div>
+        <div class="sumline small muted"><span>Sérum recommandé</span><span id="sumSerum">après diagnostic</span></div>
+        <div class="sumline small muted"><span>Livraison</span><span>Offerte</span></div>
+        <hr style="border:none;border-top:1px solid var(--line)">
+        <div class="sumline"><b>Total TTC</b><b id="sumTotal">—</b></div>
+        <div class="sumline small muted"><span>dont TVA 20 %</span><span id="sumTva">—</span></div>
+        <p class="small muted" id="sumRec"></p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<script src="assets/common.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+let offer = GK.OFFERS[params.get("offre")] ? params.get("offre") : "abonnement";
+let reco = null;
+
+document.getElementById("offerChoice").innerHTML = Object.entries(GK.OFFERS).map(([k, o]) =>
+  `<label><input type="radio" name="offer" value="${k}" ${k === offer ? "checked" : ""}><span><b>${o.name} · ${GK.euro(o.price)} TTC</b><br><span class="muted small">${o.desc}</span></span></label>`).join("");
+document.querySelectorAll("input[name=offer]").forEach(r => r.addEventListener("change", e => { offer = e.target.value; updateSummary(); }));
+
+const QUESTIONS = [
+  { id: "type", q: "En fin de journée, ta peau est plutôt…", a: [["grasse", "Brillante sur tout le visage"], ["mixte", "Brillante sur la zone T seulement"], ["seche", "Qui tiraille"], ["normale", "Confortable"]] },
+  { id: "souci", q: "Ce qui te gêne le plus aujourd'hui ?", a: [["imperfections", "Boutons, points noirs"], ["eclat", "Teint terne, fatigué"], ["deshydratation", "Peau qui tiraille, ridules de déshydratation"], ["rougeurs", "Rougeurs, peau réactive"], ["taches", "Marques, taches"]] },
+  { id: "sensible", q: "Ta peau réagit-elle aux nouveaux produits ?", a: [["non", "Rarement"], ["parfois", "Parfois"], ["oui", "Souvent (picotements, rougeurs)"]] },
+  { id: "age", q: "Ta tranche d'âge", a: [["18", "18-21 ans"], ["22", "22-25 ans"], ["26", "26-30 ans"], ["31", "Plus de 30 ans"]] },
+  { id: "routine", q: "Combien de produits utilises-tu aujourd'hui ?", a: [["0", "0 à 1"], ["2", "2 à 3"], ["4", "4 à 6"], ["7", "7 ou plus"]] },
+  { id: "soleil", q: "Tu es souvent exposée au soleil ou à la pollution ?", a: [["oui", "Oui, ville ou extérieur"], ["non", "Peu"]] },
+  { id: "patho", q: "As-tu une affection de peau diagnostiquée (acné sévère, eczéma, rosacée) ?", a: [["non", "Non"], ["oui", "Oui"]] },
+];
+document.getElementById("diag").innerHTML = QUESTIONS.map((q, i) =>
+  `<div class="q"><b>${i + 1}. ${q.q}</b><div class="choice">${q.a.map(([v, l]) => `<label><input type="radio" name="${q.id}" value="${v}" required> ${l}</label>`).join("")}</div></div>`).join("");
+
+const SERUMS = {
+  imperfections: "Sérum Imperfections · niacinamide 5 %",
+  eclat: "Sérum Éclat · vitamine C",
+  deshydratation: "Sérum Hydratation · acide hyaluronique",
+  rougeurs: "Sérum Apaisant · centella asiatica",
+  taches: "Sérum Anti-taches · acide azélaïque",
+};
+function computeReco() {
+  const f = new FormData(document.getElementById("diag"));
+  for (const q of QUESTIONS) if (!f.get(q.id)) { alert("Réponds à toutes les questions pour obtenir ta routine 🙂"); return false; }
+  let s = f.get("souci");
+  if (f.get("sensible") === "oui" && s !== "rougeurs") s = "rougeurs";
+  const cream = (f.get("type") === "seche" || f.get("souci") === "deshydratation") ? "Crème riche" : "Crème légère";
+  reco = { serum: SERUMS[s], cream, type: f.get("type") };
+  const box = document.getElementById("recoBox");
+  box.innerHTML = `<b>Ta routine Glow Kit :</b><br>01 Gel nettoyant doux · 02 ${reco.serum} · 03 ${cream}` +
+    (f.get("patho") === "oui" ? `<p class="small" style="color:var(--bad);margin:.5em 0 0">Tu as indiqué une affection diagnostiquée : demande l'avis de ton dermatologue avant d'utiliser un nouveau soin.</p>` : "");
+  box.classList.remove("hidden");
+  updateSummary();
+  return true;
+}
+function fillDemo() {
+  const p = [["Lina", "Moreau", "Lyon"], ["Chloé", "Bernard", "Nantes"], ["Inès", "Lefèvre", "Paris"], ["Manon", "Girard", "Bordeaux"]][Math.floor(Math.random() * 4)];
+  fn.value = p[0]; ln.value = p[1]; ci.value = p[2]; em.value = `${p[0].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")}.demo@exemple.fr`;
+}
+function go(n) {
+  for (let i = 1; i <= 4; i++) { document.getElementById("step" + i).classList.toggle("hidden", i !== n); document.getElementById("s" + i).classList.toggle("on", i <= n); }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function updateSummary() {
+  const o = GK.OFFERS[offer];
+  sumName.textContent = o.name; sumPrice.textContent = GK.euro(o.price); sumTotal.textContent = GK.euro(o.price);
+  sumTva.textContent = GK.euro(Math.round(o.price / 1.2 * 0.2 * 100) / 100);
+  sumSerum.textContent = reco ? reco.serum.split(" · ")[0] : "après diagnostic";
+  sumRec.textContent = offer === "abonnement" ? "Renouvelé toutes les 8 semaines, résiliable à tout moment." : "";
+}
+function pay() {
+  if (!document.getElementById("cgv").checked) { alert("Coche la case pour confirmer que tu as compris qu'il s'agit d'une démo."); return; }
+  payBtn.disabled = true; payMsg.classList.remove("hidden");
+  const o = GK.OFFERS[offer];
+  const order = {
+    id: "GK-" + Math.floor(100000 + Math.random() * 899999), type: "order", offerKey: offer, offer: o.name, amount: o.price,
+    name: fn.value + " " + ln.value, email: em.value, city: ci.value, source: src.value,
+    serum: reco ? reco.serum : "", cream: reco ? reco.cream : "",
+    pay: document.querySelector("input[name=pay]:checked").value, date: new Date().toISOString(),
+  };
+  GK.saveOrder(order);
+  try { sessionStorage.setItem("glowkit_last", JSON.stringify(order)); } catch (e) {}
+  setTimeout(() => location.href = "confirmation.html?id=" + order.id, 1200);
+}
+updateSummary();
+</script>
+</body>
+</html>

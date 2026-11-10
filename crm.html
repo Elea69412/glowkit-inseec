@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CRM · Glow Kit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%235a2d55'/%3E%3Cpath d='M20 8c1.4 6.2 5.8 10.6 12 12-6.2 1.4-10.6 5.8-12 12-1.4-6.2-5.8-10.6-12-12 6.2-1.4 10.6-5.8 12-12z' fill='%23fffaf6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-page="crm" data-nofooter="1" class="crm-body">
+
+<!-- Écran d'accès démo -->
+<div id="login" class="login card">
+  <h2 style="font-size:1.6rem">Glow Kit · CRM interne</h2>
+  <p class="muted">Outil de suivi des prospects et clientes. Accès de démonstration, sans compte ni mot de passe.</p>
+  <p class="notice">Toutes les données sont <b>fictives</b> et stockées uniquement dans ce navigateur.</p>
+  <button class="btn" style="width:100%;margin-top:16px" onclick="enter()">Entrer dans le CRM (démo)</button>
+</div>
+
+<div id="app" class="crm-shell hidden">
+  <aside class="crm-side">
+    <p class="side-title small" style="opacity:.6;margin:0 14px 10px;text-transform:uppercase;letter-spacing:.06em">Glow Kit CRM</p>
+    <button data-view="dashboard" class="active">📊 Tableau de bord</button>
+    <button data-view="contacts">👥 Contacts</button>
+    <button data-view="pipeline">🧭 Pipeline</button>
+    <button onclick="resetDemo()" style="margin-top:24px;opacity:.7">↺ Réinitialiser la démo</button>
+  </aside>
+
+  <main class="crm-main">
+    <!-- Dashboard -->
+    <div id="v-dashboard">
+      <h2 style="font-size:1.7rem">Tableau de bord</h2>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid g2">
+        <div class="card"><h3>Pipeline par étape</h3><div id="stageBars"></div></div>
+        <div class="card"><h3>Clientes par source</h3><div id="sourceBars"></div></div>
+      </div>
+      <div class="card" style="margin-top:20px"><h3>Prochaines actions</h3><div class="table-wrap"><table id="nextTable"></table></div></div>
+    </div>
+
+    <!-- Contacts -->
+    <div id="v-contacts" class="hidden">
+      <h2 style="font-size:1.7rem">Contacts <span class="muted small" id="count"></span></h2>
+      <div class="toolbar">
+        <input id="q" placeholder="🔍 Rechercher un nom, une ville, un e-mail…">
+        <select id="fStage"><option value="">Toutes les étapes</option></select>
+        <select id="fSource"><option value="">Toutes les sources</option></select>
+      </div>
+      <div class="table-wrap"><table id="contactTable"></table></div>
+    </div>
+
+    <!-- Pipeline -->
+    <div id="v-pipeline" class="hidden">
+      <h2 style="font-size:1.7rem">Pipeline</h2>
+      <p class="muted small">Glisse une carte vers une autre colonne, ou utilise les flèches ← → pour faire avancer un contact.</p>
+      <div class="pipeline" id="board"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Fiche contact -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script src="assets/common.js"></script>
+<script src="assets/crm-data.js"></script>
+<script>
+const KEY = "glowkit_crm_v1";
+const STAGES = [["nouveau", "Nouveau"], ["contacte", "Contacté"], ["proposition", "Proposition envoyée"], ["gagne", "Gagné"], ["perdu", "Perdu"]];
+const STAGE_LABEL = Object.fromEntries(STAGES);
+const OFFER_LABEL = { essentiel: "Kit Essentiel", abonnement: "Abonnement Glow", coach: "Glow Coach" };
+let contacts = [];
+
+function load() {
+  try { contacts = JSON.parse(localStorage.getItem(KEY)); } catch (e) { contacts = null; }
+  if (!Array.isArray(contacts)) contacts = JSON.parse(JSON.stringify(CRM_SEED));
+  // Import des commandes et messages passés sur la boutique (bonus)
+  for (const o of GK.getOrders()) {
+    if (contacts.some(c => c.orderId === o.id)) continue;
+    const today = o.date.slice(0, 10);
+    if (o.type === "order") {
+      contacts.unshift({ id: "W" + o.id, orderId: o.id, isNew: true, name: o.name, age: "", city: o.city, email: o.email, phone: "—", source: o.source, stage: "gagne", offer: o.offerKey, amount: o.amount,
+        next: "Envoyer le guide de routine et confirmer l'expédition", nextDate: today,
+        history: [[today, "Diagnostic terminé : " + (o.serum || "") + " + " + (o.cream || "")], [today, `Commande ${o.id} passée sur la boutique (${o.offer}, ${o.amount} € TTC, ${o.pay})`]] });
+    } else if (o.type === "lead") {
+      contacts.unshift({ id: "W" + o.id, orderId: o.id, isNew: true, name: o.name, age: "", city: "—", email: o.email, phone: "—", source: "Formulaire de contact du site", stage: "nouveau", offer: "essentiel", amount: 44,
+        next: "Répondre au message sous 24 h", nextDate: today, history: [[today, "Message reçu : « " + o.message + " »"]] });
+    }
+  }
+  save();
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(contacts)); } catch (e) {} }
+function resetDemo() {
+  if (!confirm("Réinitialiser les données de démo ? Les commandes de la boutique seront ré-importées.")) return;
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  load(); renderAll();
+}
+function enter() { try { sessionStorage.setItem("gk_crm_in", "1"); } catch (e) {} login.classList.add("hidden"); app.classList.remove("hidden"); renderAll(); }
+
+// ---- Navigation
+document.querySelectorAll(".crm-side button[data-view]").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+function show(v) {
+  ["dashboard", "contacts", "pipeline"].forEach(x => document.getElementById("v-" + x).classList.toggle("hidden", x !== v));
+  document.querySelectorAll(".crm-side button[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+  history.replaceState(null, "", "#" + v);
+}
+
+// ---- Dashboard
+function renderDashboard() {
+  const won = contacts.filter(c => c.stage === "gagne");
+  const closed = contacts.filter(c => c.stage === "gagne" || c.stage === "perdu");
+  const ca = won.reduce((s, c) => s + Number(c.amount), 0);
+  const conv = contacts.length ? Math.round(won.length / contacts.length * 100) : 0;
+  const convClosed = closed.length ? Math.round(won.length / closed.length * 100) : 0;
+  const pipeValue = contacts.filter(c => ["nouveau", "contacte", "proposition"].includes(c.stage)).reduce((s, c) => s + Number(c.amount), 0);
+  kpis.innerHTML = `
+    <div class="card"><div class="lbl">Chiffre d'affaires</div><div class="kpi">${GK.euro(ca)}</div><div class="small muted">TTC, commandes gagnées</div></div>
+    <div class="card"><div class="lbl">Clientes</div><div class="kpi">${won.length}</div><div class="small muted">sur ${contacts.length} contacts</div></div>
+    <div class="card"><div class="lbl">Taux de conversion</div><div class="kpi">${conv} %</div><div class="small muted">gagnés / contacts · ${convClosed} % sur affaires closes</div></div>
+    <div class="card"><div class="lbl">Pipeline en cours</div><div class="kpi">${GK.euro(pipeValue)}</div><div class="small muted">valeur potentielle TTC</div></div>`;
+  const max = Math.max(...STAGES.map(([k]) => contacts.filter(c => c.stage === k).length), 1);
+  stageBars.innerHTML = STAGES.map(([k, l]) => { const n = contacts.filter(c => c.stage === k).length; return `<div style="margin:10px 0"><div style="display:flex;justify-content:space-between" class="small"><span>${l}</span><b>${n}</b></div><div class="bar"><i style="width:${n / max * 100}%"></i></div></div>`; }).join("");
+  const srcs = {}; won.forEach(c => srcs[c.source] = (srcs[c.source] || 0) + 1);
+  const smax = Math.max(...Object.values(srcs), 1);
+  sourceBars.innerHTML = Object.entries(srcs).sort((a, b) => b[1] - a[1]).map(([s, n]) => `<div style="margin:10px 0"><div style="display:flex;justify-content:space-between" class="small"><span>${s}</span><b>${n}</b></div><div class="bar"><i style="width:${n / smax * 100}%;background:var(--rose)"></i></div></div>`).join("") || "<p class='muted'>Aucune cliente.</p>";
+  const nexts = contacts.filter(c => c.nextDate && c.stage !== "perdu").sort((a, b) => a.nextDate.localeCompare(b.nextDate)).slice(0, 6);
+  nextTable.innerHTML = `<tr><th>Date</th><th>Contact</th><th>Action</th><th>Étape</th></tr>` + nexts.map(c => `<tr class="click" onclick="openContact('${c.id}')"><td>${fmtDate(c.nextDate)}</td><td>${esc(c.name)}</td><td>${esc(c.next)}</td><td><span class="badge st-${c.stage}">${STAGE_LABEL[c.stage]}</span></td></tr>`).join("");
+}
+
+// ---- Contacts
+STAGES.forEach(([k, l]) => fStage.insertAdjacentHTML("beforeend", `<option value="${k}">${l}</option>`));
+function renderContacts() {
+  const sources = [...new Set(contacts.map(c => c.source))].sort();
+  const cur = fSource.value;
+  fSource.innerHTML = `<option value="">Toutes les sources</option>` + sources.map(s => `<option ${s === cur ? "selected" : ""}>${esc(s)}</option>`).join("");
+  const term = q.value.trim().toLowerCase();
+  const list = contacts.filter(c => (!fStage.value || c.stage === fStage.value) && (!fSource.value || c.source === fSource.value) &&
+    (!term || [c.name, c.city, c.email].join(" ").toLowerCase().includes(term)));
+  count.textContent = `(${list.length} / ${contacts.length})`;
+  contactTable.innerHTML = `<tr><th>Nom</th><th>Ville</th><th>Source</th><th>Offre</th><th>Étape</th><th>Prochaine action</th></tr>` +
+    list.map(c => `<tr class="click ${c.isNew ? "new" : ""}" onclick="openContact('${c.id}')"><td><b>${esc(c.name)}</b><br><span class="small muted">${esc(c.email)}</span></td><td>${esc(c.city)}</td><td>${esc(c.source)}</td><td>${OFFER_LABEL[c.offer] || ""}<br><span class="small muted">${GK.euro(Number(c.amount))}</span></td><td><span class="badge st-${c.stage}">${STAGE_LABEL[c.stage]}</span></td><td class="small">${esc(c.next)}</td></tr>`).join("") ||
+    `<tr><td colspan="6" class="muted">Aucun contact ne correspond.</td></tr>`;
+}
+[q, fStage, fSource].forEach(el => el.addEventListener("input", renderContacts));
+
+// ---- Pipeline
+function renderBoard() {
+  board.innerHTML = STAGES.map(([k, l], i) => {
+    const items = contacts.filter(c => c.stage === k);
+    const total = items.reduce((s, c) => s + Number(c.amount), 0);
+    return `<div class="col" data-stage="${k}"><h4><span>${l}</span><span class="muted">${items.length} · ${GK.euro(total)}</span></h4>` +
+      items.map(c => `<div class="deal" draggable="true" data-id="${c.id}"><div class="n" onclick="openContact('${c.id}')" style="cursor:pointer">${esc(c.name)}</div><div class="small muted">${OFFER_LABEL[c.offer] || ""} · ${esc(c.source)}</div>
+        <div class="actions"><button ${i === 0 ? "disabled" : ""} onclick="move('${c.id}',-1)" aria-label="Étape précédente">←</button><button onclick="openContact('${c.id}')">Fiche</button><button ${i === STAGES.length - 1 ? "disabled" : ""} onclick="move('${c.id}',1)" aria-label="Étape suivante">→</button></div></div>`).join("") + `</div>`;
+  }).join("");
+  board.querySelectorAll(".deal").forEach(d => d.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", d.dataset.id)));
+  board.querySelectorAll(".col").forEach(col => {
+    col.addEventListener("dragover", e => { e.preventDefault(); col.classList.add("drop"); });
+    col.addEventListener("dragleave", () => col.classList.remove("drop"));
+    col.addEventListener("drop", e => { e.preventDefault(); col.classList.remove("drop"); setStage(e.dataTransfer.getData("text/plain"), col.dataset.stage); });
+  });
+}
+function move(id, dir) {
+  const c = contacts.find(x => x.id === id); const i = STAGES.findIndex(([k]) => k === c.stage);
+  const n = STAGES[i + dir]; if (n) setStage(id, n[0]);
+}
+function setStage(id, stage) {
+  const c = contacts.find(x => x.id === id); if (!c || c.stage === stage) return;
+  c.history.push([today(), `Étape : ${STAGE_LABEL[c.stage]} → ${STAGE_LABEL[stage]}`]);
+  c.stage = stage; save(); renderAll();
+  if (!modalBg.classList.contains("open")) return; openContact(id);
+}
+
+// ---- Fiche contact
+function openContact(id) {
+  const c = contacts.find(x => x.id === id); if (!c) return;
+  modal.innerHTML = `<button class="x" onclick="closeModal()" aria-label="Fermer">×</button>
+    <span class="badge st-${c.stage}">${STAGE_LABEL[c.stage]}</span>
+    <h2 style="font-size:1.6rem;margin-top:10px">${esc(c.name)}</h2>
+    <div class="grid g2" style="gap:8px 20px;font-size:.92rem">
+      <div><b>E-mail :</b> ${esc(c.email)}</div><div><b>Téléphone :</b> ${esc(c.phone)}</div>
+      <div><b>Ville :</b> ${esc(c.city)}</div><div><b>Âge :</b> ${c.age ? c.age + " ans" : "—"}</div>
+      <div><b>Source :</b> ${esc(c.source)}</div><div><b>Offre :</b> ${OFFER_LABEL[c.offer] || ""} (${GK.euro(Number(c.amount))} TTC)</div>
+    </div>
+    <label for="stSel">Étape du pipeline</label>
+    <select id="stSel" onchange="setStage('${c.id}', this.value)">${STAGES.map(([k, l]) => `<option value="${k}" ${k === c.stage ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <label>Prochaine action</label>
+    <div class="row"><input id="nxt" value="${esc(c.next)}"><input id="nxtD" type="date" value="${c.nextDate || ""}"></div>
+    <button class="btn sm" style="margin-top:10px" onclick="saveNext('${c.id}')">Enregistrer l'action</button>
+    <h3 style="margin-top:22px">Historique des échanges</h3>
+    <div class="timeline">${c.history.map(([d, t]) => `<div><b>${fmtDate(d)}</b> · ${esc(t)}</div>`).join("")}</div>
+    <div class="row"><input id="note" placeholder="Ajouter une note (appel, e-mail, DM…)"><button class="btn sm ghost" onclick="addNote('${c.id}')">Ajouter</button></div>
+    <p class="small muted" style="margin-top:14px">Contact fictif · données de démonstration.</p>`;
+  modalBg.classList.add("open");
+}
+function closeModal() { modalBg.classList.remove("open"); }
+function saveNext(id) { const c = contacts.find(x => x.id === id); c.next = nxt.value; c.nextDate = nxtD.value; save(); renderAll(); openContact(id); }
+function addNote(id) { const v = note.value.trim(); if (!v) return; const c = contacts.find(x => x.id === id); c.history.push([today(), v]); save(); openContact(id); }
+
+// ---- utils
+function today() { return new Date().toISOString().slice(0, 10); }
+function fmtDate(d) { if (!d) return "—"; const [y, m, j] = d.split("-"); return `${j}/${m}/${y}`; }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch])); }
+function renderAll() { renderDashboard(); renderContacts(); renderBoard(); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+load();
+let inSession = false; try { inSession = sessionStorage.getItem("gk_crm_in") === "1"; } catch (e) {}
+const startView = ["dashboard", "contacts", "pipeline"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "dashboard";
+if (inSession || location.hash) { enter(); }
+show(startView);
+</script>
+</body>
+</html>

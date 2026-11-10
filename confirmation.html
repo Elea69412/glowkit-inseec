@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commande confirmée · Glow Kit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%235a2d55'/%3E%3Cpath d='M20 8c1.4 6.2 5.8 10.6 12 12-6.2 1.4-10.6 5.8-12 12-1.4-6.2-5.8-10.6-12-12 6.2-1.4 10.6-5.8 12-12z' fill='%23fffaf6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-page="vente">
+<section>
+  <div class="wrap" style="max-width:720px;text-align:center">
+    <div style="font-size:3.5rem">✨</div>
+    <h1>Merci, ta commande est confirmée !</h1>
+    <p class="muted">Ceci est une <b>commande de démonstration</b> : aucun paiement n'a été effectué et rien ne sera livré.</p>
+    <div class="card" style="text-align:left;margin-top:28px" id="recap"></div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:28px">
+      <a href="crm.html#contacts" class="btn">Voir cette commande dans le CRM →</a>
+      <a href="index.html" class="btn ghost">Retour à la boutique</a>
+    </div>
+  </div>
+</section>
+<script src="assets/common.js"></script>
+<script>
+let o = null;
+try { o = JSON.parse(sessionStorage.getItem("glowkit_last")); } catch (e) {}
+const id = new URLSearchParams(location.search).get("id");
+if (!o || (id && o.id !== id)) o = GK.getOrders().find(x => x.id === id) || null;
+document.getElementById("recap").innerHTML = o ? `
+  <h3>Commande n° ${o.id}</h3>
+  <div class="sumline" style="display:flex;justify-content:space-between"><span>${o.offer}</span><b>${GK.euro(o.amount)} TTC</b></div>
+  <p class="small muted" style="margin:.4em 0">Ta routine : 01 Gel nettoyant doux · 02 ${o.serum || "sérum selon diagnostic"} · 03 ${o.cream || "crème"}</p>
+  <p class="small muted" style="margin:.4em 0">Client (fictif) : ${o.name} · ${o.city} · ${o.email}</p>
+  <p class="small muted" style="margin:.4em 0">Paiement : ${o.pay} · Livraison estimée : 3 jours ouvrés (fictif)</p>
+  <p class="small" style="margin-top:12px">Tu vas recevoir (en théorie) un e-mail avec ton guide de routine matin et soir.</p>`
+  : `<p>Aucune commande trouvée dans ce navigateur. <a href="commande.html">Passer une commande de démo</a>.</p>`;
+</script>
+</body>
+</html>
